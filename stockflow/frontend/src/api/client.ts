@@ -1,5 +1,5 @@
 // Centralized API Client Module with Strict Unified Error Envelope Parsing
-import {
+import type {
   Product,
   ProductListResponse,
   StockMovementsResponse,

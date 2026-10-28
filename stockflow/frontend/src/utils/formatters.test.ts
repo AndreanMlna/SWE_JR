@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatCurrencyIDR, formatRelativeTime, calculateSummaryMetrics } from './formatters';
-import { Product } from '../types/api';
+import type { Product } from '../types/api';
 
 describe('formatters utility unit tests', () => {
   describe('formatCurrencyIDR', () => {

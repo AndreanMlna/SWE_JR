@@ -1,4 +1,4 @@
-import { Product, SummaryMetrics } from '../types/api';
+import type { Product, SummaryMetrics } from '../types/api';
 
 /**
  * Format nominal integer ke mata uang Rupiah standar Indonesia
