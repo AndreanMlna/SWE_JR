@@ -106,14 +106,18 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     }
 
     setIsSubmitting(true);
+    const idempotencyKey = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     try {
-      const createdOrder = await api.createOrder({
-        customer: customer.trim(),
-        items: items.map((it) => ({
-          sku: it.sku,
-          qty: it.qty,
-        })),
-      });
+      const createdOrder = await api.createOrder(
+        {
+          customer: customer.trim(),
+          items: items.map((it) => ({
+            sku: it.sku,
+            qty: it.qty,
+          })),
+        },
+        idempotencyKey
+      );
 
       onSuccess(createdOrder);
       onClose();

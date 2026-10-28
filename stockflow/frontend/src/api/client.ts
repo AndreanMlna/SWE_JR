@@ -8,6 +8,7 @@ import type {
   UpdateProductPayload,
   AdjustStockPayload,
   CreateOrderPayload,
+  DailySalesReport,
   APIErrorEnvelope,
   APIErrorDetail,
 } from '../types/api';
@@ -134,9 +135,14 @@ export const api = {
   },
 
   // Orders
-  async createOrder(payload: CreateOrderPayload): Promise<SalesOrder> {
+  async createOrder(payload: CreateOrderPayload, idempotencyKey?: string): Promise<SalesOrder> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
     return request<SalesOrder>('/orders', {
       method: 'POST',
+      headers,
       body: JSON.stringify(payload),
     });
   },
@@ -149,5 +155,11 @@ export const api = {
     return request<SalesOrder>(`/orders/${id}/cancel`, {
       method: 'POST',
     });
+  },
+
+  // Reports (Bonus)
+  async getDailySalesReport(date?: string): Promise<DailySalesReport> {
+    const endpoint = date ? `/reports/daily-sales?date=${encodeURIComponent(date)}` : '/reports/daily-sales';
+    return request<DailySalesReport>(endpoint, { method: 'GET' });
   },
 };

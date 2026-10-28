@@ -37,4 +37,16 @@ describe('API Client Error & Envelope Parsing', () => {
     expect(clientError.sku).toBeUndefined();
     expect(clientError.available).toBeUndefined();
   });
+
+  it('harus menangani status code dan custom fallback message', () => {
+    const error = new APIClientError(500, {
+      code: 'INTERNAL_ERROR',
+      message: 'Terjadi kesalahan sistem internal',
+    });
+
+    expect(error.name).toBe('APIClientError');
+    expect(error.statusCode).toBe(500);
+    expect(error.code).toBe('INTERNAL_ERROR');
+    expect(error.message).toBe('Terjadi kesalahan sistem internal');
+  });
 });

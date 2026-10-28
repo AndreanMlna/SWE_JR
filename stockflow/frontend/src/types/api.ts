@@ -49,6 +49,13 @@ export interface StockMovementsResponse {
   data: StockMovement[];
 }
 
+export interface DailySalesReport {
+  date: string;
+  total_orders: number;
+  total_revenue: number;
+  total_items_sold: number;
+}
+
 // Unified Error Envelope dari Go backend
 export interface APIErrorDetail {
   code: string;

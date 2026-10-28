@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Product, SalesOrder, ProductFilterTab } from './types/api';
+import type { Product, SalesOrder, ProductFilterTab, DailySalesReport } from './types/api';
 import { api, APIClientError } from './api/client';
 import { calculateSummaryMetrics } from './utils/formatters';
 import { useDebounce } from './hooks/useDebounce';
@@ -17,6 +17,7 @@ import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 
 export function App() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [dailySales, setDailySales] = useState<DailySalesReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,9 +76,19 @@ export function App() {
     }
   }, [debouncedSearch]);
 
+  const fetchDailySales = useCallback(async () => {
+    try {
+      const res = await api.getDailySalesReport();
+      setDailySales(res);
+    } catch {
+      // Non-blocking background sync
+    }
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchDailySales();
+  }, [fetchProducts, fetchDailySales]);
 
   // Handler Hapus Produk (Proteksi Audit Trail 409)
   const handleConfirmDelete = async () => {
@@ -135,7 +146,7 @@ export function App() {
         </div>
 
         {/* 1. Summary Cards (Priority 5) */}
-        <SummaryCards metrics={metrics} isLoading={isLoading && products.length === 0} />
+        <SummaryCards metrics={metrics} dailySales={dailySales} isLoading={isLoading && products.length === 0} />
 
         {/* 2. Products Table (Priority 1) */}
         <ProductsTable
@@ -188,6 +199,7 @@ export function App() {
           onSuccess={(created) => {
             showToast(`Pesanan #${created.id} untuk '${created.customer}' berhasil dibuat!`);
             fetchProducts(true); // Stok langsung ter-refresh setelah order dibuat
+            fetchDailySales(); // Metrik penjualan harian ter-update
             setSelectedOrder(created); // Tampilkan detail pesanan yang baru berhasil dibuat
           }}
         />
@@ -201,6 +213,7 @@ export function App() {
           onOrderCancelled={(cancelled) => {
             showToast(`Pesanan #${cancelled.id} telah dibatalkan. Stok barang berhasil dipulihkan.`);
             fetchProducts(true); // Stok terlihat dipulihkan pada daftar produk!
+            fetchDailySales(); // Metrik penjualan harian ter-update
           }}
         />
       )}

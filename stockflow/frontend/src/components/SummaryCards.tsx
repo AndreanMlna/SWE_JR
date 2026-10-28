@@ -1,18 +1,24 @@
 import React from 'react';
-import { Package, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
-import type { SummaryMetrics } from '../types/api';
+import { Package, CheckCircle2, TrendingUp, AlertTriangle, ShoppingBag } from 'lucide-react';
+import type { SummaryMetrics, DailySalesReport } from '../types/api';
 import { formatCurrencyIDR } from '../utils/formatters';
 
 interface SummaryCardsProps {
   metrics: SummaryMetrics;
+  dailySales?: DailySalesReport | null;
   isLoading: boolean;
 }
 
-export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }) => {
+export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, dailySales, isLoading }) => {
+  const cardCount = dailySales !== undefined ? 5 : 4;
+  const gridClasses = dailySales !== undefined
+    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6'
+    : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6';
+
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[...Array(4)].map((_, i) => (
+      <div className={gridClasses}>
+        {[...Array(cardCount)].map((_, i) => (
           <div
             key={i}
             className="p-5 rounded-xl bg-white border border-slate-200 shadow-xs animate-pulse"
@@ -37,6 +43,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
       icon: Package,
       iconBg: 'bg-slate-100 text-slate-700',
       borderAccent: 'hover:border-slate-300',
+      alert: false,
     },
     {
       title: 'Produk Aktif',
@@ -45,6 +52,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
       icon: CheckCircle2,
       iconBg: 'bg-emerald-50 text-emerald-700',
       borderAccent: 'hover:border-emerald-200',
+      alert: false,
     },
     {
       title: 'Total Nilai Stok',
@@ -53,6 +61,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
       icon: TrendingUp,
       iconBg: 'bg-emerald-50 text-emerald-700',
       borderAccent: 'hover:border-emerald-200',
+      alert: false,
     },
     {
       title: 'Stok Menipis (≤ 10)',
@@ -64,6 +73,18 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
       alert: metrics.lowStockCount > 0,
     },
   ];
+
+  if (dailySales) {
+    cards.push({
+      title: 'Penjualan Hari Ini',
+      value: formatCurrencyIDR(dailySales.total_revenue),
+      subtitle: `${dailySales.total_orders} order (${dailySales.total_items_sold} item terjual)`,
+      icon: ShoppingBag,
+      iconBg: 'bg-indigo-50 text-indigo-700',
+      borderAccent: 'hover:border-indigo-200',
+      alert: false,
+    });
+  }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
