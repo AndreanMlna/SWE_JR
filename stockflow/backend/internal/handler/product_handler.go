@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"stockflow/backend/internal/domain"
 	"stockflow/backend/internal/service"
@@ -112,6 +113,16 @@ func (h *ProductHandler) AdjustStock(w http.ResponseWriter, r *http.Request) {
 	var req domain.AdjustStockRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, domain.NewBadRequestError("MALFORMED_JSON", "Format JSON request tidak valid"))
+		return
+	}
+
+	req.Type = strings.ToLower(strings.TrimSpace(req.Type))
+	if req.Type != "in" && req.Type != "out" {
+		writeError(w, domain.NewBadRequestError("INVALID_TYPE", "Tipe mutasi hanya boleh 'in' atau 'out'"))
+		return
+	}
+	if req.Qty <= 0 {
+		writeError(w, domain.NewBadRequestError("INVALID_QTY", "Kuantitas mutasi harus bernilai integer > 0"))
 		return
 	}
 
