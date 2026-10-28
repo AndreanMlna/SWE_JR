@@ -81,8 +81,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 text-white">
-              {isEdit ? <Edit3 className="w-4 h-4" /> : <PackagePlus className="w-4 h-4 text-emerald-400" />}
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+              {isEdit ? <Edit3 className="w-4 h-4 text-emerald-700" /> : <PackagePlus className="w-4 h-4 text-emerald-700" />}
             </div>
             <h3 className="text-base font-bold text-slate-900">
               {isEdit ? 'Perbarui Produk' : 'Tambah Produk Baru'}
@@ -204,7 +204,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all disabled:opacity-50 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-all disabled:opacity-50 active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <>
@@ -213,7 +213,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-white" />
                   <span>{isEdit ? 'Simpan Perubahan' : 'Daftarkan Produk'}</span>
                 </>
               )}

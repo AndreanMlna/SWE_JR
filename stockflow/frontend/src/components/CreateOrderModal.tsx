@@ -140,8 +140,8 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 text-white">
-              <ShoppingBag className="w-4 h-4 text-emerald-400" />
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+              <ShoppingBag className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">Buat Pesanan Penjualan Baru</h3>
@@ -299,16 +299,16 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
           )}
 
           {/* Summary Preview Box */}
-          <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-400 font-medium block">Estimasi Total Belanja</span>
-              <span className="text-xs text-emerald-400">Harga satuan final diotorisasi mutlak oleh server</span>
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Estimasi Total Belanja</span>
+              <span className="text-xs text-slate-500">Harga satuan final diotorisasi mutlak oleh server Go</span>
             </div>
             <div className="text-right">
-              <span className="text-xl font-bold tracking-tight text-white block">
+              <span className="text-2xl font-bold tracking-tight text-slate-900 block tabular-nums">
                 {formatCurrencyIDR(estimatedTotal)}
               </span>
-              <span className="text-xs text-slate-400 font-medium">{items.length} item barang</span>
+              <span className="text-xs text-slate-500 font-medium">{items.length} baris item barang</span>
             </div>
           </div>
 
@@ -326,7 +326,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all disabled:opacity-50 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-all disabled:opacity-50 active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <>
@@ -335,7 +335,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-white" />
                   <span>Kirim Pesanan (Order)</span>
                 </>
               )}

@@ -129,12 +129,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           </div>
 
           {/* Server-Computed Total Card */}
-          <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between">
             <div>
-              <span className="text-xs text-slate-400 font-medium block">Total Pembayaran</span>
-              <span className="text-xs text-emerald-400">Dihitung otomatis oleh server Go</span>
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Total Pembayaran</span>
+              <span className="text-xs text-slate-500">Dihitung otomatis secara atomik oleh server Go</span>
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">
+            <span className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
               {formatCurrencyIDR(order.total)}
             </span>
           </div>

@@ -183,7 +183,7 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-sm transition-all disabled:opacity-50 active:scale-[0.98]"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs transition-all disabled:opacity-50 active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <>
@@ -192,7 +192,7 @@ export const AdjustStockModal: React.FC<AdjustStockModalProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-white" />
                   <span>Konfirmasi Mutasi</span>
                 </>
               )}

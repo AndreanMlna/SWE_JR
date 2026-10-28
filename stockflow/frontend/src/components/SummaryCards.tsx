@@ -43,24 +43,24 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
       value: metrics.activeProducts.toLocaleString('id-ID'),
       subtitle: `${((metrics.activeProducts / (metrics.totalProducts || 1)) * 100).toFixed(0)}% dari seluruh katalog`,
       icon: CheckCircle2,
-      iconBg: 'bg-emerald-50 text-emerald-600',
-      borderAccent: 'hover:border-emerald-300',
+      iconBg: 'bg-emerald-50 text-emerald-700',
+      borderAccent: 'hover:border-emerald-200',
     },
     {
       title: 'Total Nilai Stok',
       value: formatCurrencyIDR(metrics.totalStockValue),
       subtitle: 'Estimasi nilai inventaris fisik',
       icon: TrendingUp,
-      iconBg: 'bg-blue-50 text-blue-600',
-      borderAccent: 'hover:border-blue-300',
+      iconBg: 'bg-emerald-50 text-emerald-700',
+      borderAccent: 'hover:border-emerald-200',
     },
     {
       title: 'Stok Menipis (≤ 10)',
       value: metrics.lowStockCount.toLocaleString('id-ID'),
       subtitle: metrics.lowStockCount > 0 ? 'Perlu penambahan stok segera' : 'Seluruh stok dalam batas aman',
       icon: AlertTriangle,
-      iconBg: metrics.lowStockCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500',
-      borderAccent: metrics.lowStockCount > 0 ? 'border-amber-200 hover:border-amber-300' : 'hover:border-slate-300',
+      iconBg: metrics.lowStockCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500',
+      borderAccent: metrics.lowStockCount > 0 ? 'border-amber-200/80 hover:border-amber-300' : 'hover:border-slate-300',
       alert: metrics.lowStockCount > 0,
     },
   ];
@@ -84,12 +84,13 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, isLoading }
             </div>
 
             <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-2xl font-bold tracking-tight text-slate-900">
+              <span className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums">
                 {card.value}
               </span>
               {card.alert && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">
-                  Perhatian
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/80">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  <span>Perlu Cek</span>
                 </span>
               )}
             </div>
