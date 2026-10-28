@@ -331,3 +331,77 @@ func TestCancelOrder_RestoreStock_Atomic(t *testing.T) {
 		t.Errorf("expected 409 ORDER_ALREADY_CANCELLED, got %v", err)
 	}
 }
+
+// TestCreateOrder_IdempotencyKey membuktikan bahwa retrying order dengan Idempotency-Key
+// tidak pernah menduplikasi transaksi atau memotong stok dua kali.
+func TestCreateOrder_IdempotencyKey(t *testing.T) {
+	db := getTestDB(t)
+	if db == nil {
+		return
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	orderRepo := repository.NewPostgresOrderRepository(db)
+
+	testSKU := fmt.Sprintf("TEST-IDEM-%d", time.Now().UnixNano())
+	var productID int
+	err := db.QueryRowContext(ctx, `
+		INSERT INTO products (sku, name, price, stock, is_active)
+		VALUES ($1, 'Produk Idempotency Test', 15000, 10, true)
+		RETURNING id
+	`, testSKU).Scan(&productID)
+	if err != nil {
+		t.Fatalf("Gagal insert product test: %v", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(ctx, `DELETE FROM products WHERE id = $1`, productID)
+	}()
+
+	idemKey := fmt.Sprintf("idem-key-%d", time.Now().UnixNano())
+	req := domain.CreateOrderRequest{
+		Customer:       "Customer Idempotent",
+		IdempotencyKey: idemKey,
+		Items: []domain.OrderItemRequest{
+			{SKU: testSKU, Qty: 3},
+		},
+	}
+
+	// Request pertama
+	order1, err := orderRepo.CreateOrder(ctx, req)
+	if err != nil {
+		t.Fatalf("CreateOrder 1 gagal: %v", err)
+	}
+	if order1.Total != 45000 {
+		t.Errorf("expected total 45000, got %d", order1.Total)
+	}
+
+	// Verifikasi stok berkurang dari 10 menjadi 7
+	var stockAfter1 int
+	_ = db.QueryRowContext(ctx, `SELECT stock FROM products WHERE id = $1`, productID).Scan(&stockAfter1)
+	if stockAfter1 != 7 {
+		t.Errorf("expected stock 7 after first order, got %d", stockAfter1)
+	}
+
+	// Request kedua dengan Idempotency-Key yang SAMA (simulasi retry akibat network timeout)
+	order2, err := orderRepo.CreateOrder(ctx, req)
+	if err != nil {
+		t.Fatalf("CreateOrder 2 (retry) gagal: %v", err)
+	}
+
+	// Buktikan order2 mengembalikan ID dan data yang sama persis
+	if order2.ID != order1.ID {
+		t.Errorf("expected same order ID %d, got %d", order1.ID, order2.ID)
+	}
+	if order2.Total != order1.Total {
+		t.Errorf("expected same total %d, got %d", order1.Total, order2.Total)
+	}
+
+	// Buktikan stok TIDAK terpotong lagi (tetap 7, BUKAN 4!)
+	var stockAfter2 int
+	_ = db.QueryRowContext(ctx, `SELECT stock FROM products WHERE id = $1`, productID).Scan(&stockAfter2)
+	if stockAfter2 != 7 {
+		t.Errorf("FATAL: Stok terpotong ganda! Expected 7, got %d", stockAfter2)
+	}
+}
+

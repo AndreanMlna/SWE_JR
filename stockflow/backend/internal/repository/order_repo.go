@@ -31,6 +31,21 @@ func NewPostgresOrderRepository(db *sql.DB) OrderRepository {
 
 func (r *postgresOrderRepository) CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error) {
 	// ==========================================
+	// 0. Idempotency Check (Bonus Feature)
+	// Jika klien menyertakan Idempotency-Key dan order sudah pernah dibuat,
+	// kembalikan order existing tanpa menduplikasi transaksi atau memotong stok lagi.
+	// ==========================================
+	if req.IdempotencyKey != "" {
+		var existingOrderID int
+		err := r.db.QueryRowContext(ctx, `SELECT order_id FROM idempotency_keys WHERE key = $1`, req.IdempotencyKey).Scan(&existingOrderID)
+		if err == nil {
+			return r.GetOrderByID(ctx, existingOrderID)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NewInternalError(fmt.Errorf("gagal memeriksa idempotency key: %w", err))
+		}
+	}
+
+	// ==========================================
 	// 1. Pre-flight Validation (Status 400)
 	// ==========================================
 	if strings.TrimSpace(req.Customer) == "" {
@@ -197,7 +212,25 @@ func (r *postgresOrderRepository) CreateOrder(ctx context.Context, req domain.Cr
 		}
 	}
 
-	// 5e. Commit seluruh transaksi atomik
+	// 5e. Simpan Idempotency-Key (jika ada) dalam transaksi yang sama
+	if req.IdempotencyKey != "" {
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO idempotency_keys (key, order_id, created_at)
+			VALUES ($1, $2, now())
+		`, req.IdempotencyKey, order.ID)
+		if err != nil {
+			if strings.Contains(err.Error(), "unique constraint") || strings.Contains(err.Error(), "duplicate key") {
+				_ = tx.Rollback()
+				var existingOrderID int
+				if scanErr := r.db.QueryRowContext(ctx, `SELECT order_id FROM idempotency_keys WHERE key = $1`, req.IdempotencyKey).Scan(&existingOrderID); scanErr == nil {
+					return r.GetOrderByID(ctx, existingOrderID)
+				}
+			}
+			return nil, domain.NewInternalError(fmt.Errorf("gagal menyimpan idempotency key: %w", err))
+		}
+	}
+
+	// 5f. Commit seluruh transaksi atomik
 	if err := tx.Commit(); err != nil {
 		return nil, domain.NewInternalError(fmt.Errorf("gagal commit transaksi sales order: %w", err))
 	}

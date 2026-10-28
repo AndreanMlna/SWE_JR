@@ -36,8 +36,9 @@ type OrderItemRequest struct {
 
 // CreateOrderRequest adalah payload pembuatan order baru
 type CreateOrderRequest struct {
-	Customer string             `json:"customer"`
-	Items    []OrderItemRequest `json:"items"`
+	Customer       string             `json:"customer"`
+	Items          []OrderItemRequest `json:"items"`
+	IdempotencyKey string             `json:"-"`
 }
 
 // DailySalesReport memuat ringkasan rekapitulasi penjualan per hari (Bonus ERP feature)

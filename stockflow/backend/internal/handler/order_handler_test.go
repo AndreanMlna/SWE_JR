@@ -140,3 +140,38 @@ func TestOrderHandler_CreateOrder(t *testing.T) {
 		}
 	})
 }
+
+func TestOrderHandler_GetDailySalesReport(t *testing.T) {
+	t.Run("Status 200 - Berhasil mengambil laporan penjualan harian", func(t *testing.T) {
+		mockSvc := &mockOrderService{
+			getDailySalesReportFunc: func(ctx context.Context, date string) (*domain.DailySalesReport, error) {
+				return &domain.DailySalesReport{
+					Date:           date,
+					TotalOrders:    5,
+					TotalRevenue:   1500000,
+					TotalItemsSold: 12,
+				}, nil
+			},
+		}
+
+		h := handler.NewOrderHandler(mockSvc)
+		req := httptest.NewRequest(http.MethodGet, "/api/reports/daily-sales?date=2026-10-28", nil)
+		rec := httptest.NewRecorder()
+
+		h.GetDailySalesReport(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d", rec.Code)
+		}
+
+		var report domain.DailySalesReport
+		if err := json.NewDecoder(rec.Body).Decode(&report); err != nil {
+			t.Fatalf("failed to decode report: %v", err)
+		}
+
+		if report.TotalOrders != 5 || report.TotalRevenue != 1500000 || report.TotalItemsSold != 12 {
+			t.Errorf("unexpected report output: %+v", report)
+		}
+	})
+}
+

@@ -55,3 +55,12 @@ CREATE TABLE IF NOT EXISTS sales_order_items (
 
 CREATE INDEX IF NOT EXISTS idx_sales_order_items_order_id ON sales_order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_sales_order_items_sku ON sales_order_items(sku);
+
+-- 5. Idempotency Keys Table (Bonus: Prevent Double-Ordering on POST /api/orders)
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    key TEXT PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES sales_orders(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_keys_created_at ON idempotency_keys(created_at);

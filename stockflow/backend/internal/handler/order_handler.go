@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"stockflow/backend/internal/domain"
 	"stockflow/backend/internal/service"
@@ -26,6 +28,8 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		writeError(w, domain.NewBadRequestError("MALFORMED_JSON", "Format JSON request tidak valid"))
 		return
 	}
+
+	req.IdempotencyKey = strings.TrimSpace(r.Header.Get("Idempotency-Key"))
 
 	order, err := h.service.CreateOrder(r.Context(), req)
 	if err != nil {
@@ -74,10 +78,9 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 
 // GetDailySalesReport menangani GET /api/reports/daily-sales?date=YYYY-MM-DD
 func (h *OrderHandler) GetDailySalesReport(w http.ResponseWriter, r *http.Request) {
-	dateStr := r.URL.Query().Get("date")
+	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
 	if dateStr == "" {
-		writeError(w, domain.NewBadRequestError("MISSING_DATE", "Query parameter 'date' (YYYY-MM-DD) wajib diisi"))
-		return
+		dateStr = time.Now().Format("2006-01-02")
 	}
 
 	report, err := h.service.GetDailySalesReport(r.Context(), dateStr)
