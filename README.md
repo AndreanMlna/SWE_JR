@@ -12,12 +12,28 @@ Sistem dirancang untuk siap dijalankan secara lokal dalam waktu kurang dari 5 me
 ### Prasyarat
 - [Docker & Docker Compose](https://www.docker.com/)
 - [Go 1.22+](https://go.dev/) (opsional jika menjalankan backend lokal)
-- [Node.js v18+](https://nodejs.org/) (untuk menjalankan frontend Vite)
+- [Node.js v18+](https://nodejs.org/) (untuk menjalankan frontend Vite secara lokal)
 
-### Langkah 1: Jalankan Basis Data PostgreSQL (Migrasi & Seed Otomatis)
+### Opsi A: 1-Command End-to-End Stack (Bonus Deliverable)
+Jalankan seluruh stack (Database, Backend Go, dan Frontend React) dalam satu perintah:
+```bash
+docker compose up -d --build
+```
+Sistem akan otomatis mengompilasi dan menjalankan:
+1. **PostgreSQL 15** pada port `5433` (auto-migration skema DDL & seed 15 produk).
+2. **Backend Go 1.22+** pada port `8080` (terhubung ke PostgreSQL dengan healthcheck).
+3. **Frontend React + TypeScript** pada port `3000` (disajikan via Nginx dengan reverse proxy ke backend).
+
+Buka browser di: **`http://localhost:3000`** atau akses API di **`http://localhost:8080/api/health`**.
+
+---
+
+### Opsi B: Local Development Workflow
+
+#### Langkah 1: Jalankan Basis Data PostgreSQL (Migrasi & Seed Otomatis)
 Dari direktori root repositori, jalankan:
 ```bash
-docker compose up -d
+docker compose up -d postgres
 ```
 > **Catatan**: Container PostgreSQL dikonfigurasi pada port `5433` (`5433:5432`) untuk mencegah konflik dengan instansi PostgreSQL bawaan sistem host. Container akan otomatis mengeksekusi skema tabel DDL (`stockflow/migrations/000001_create_tables.up.sql`) dan memuat data awal realistis (`stockflow/migrations/000002_seed_data.up.sql`) berisi 15 produk mini ERP, mutasi stok awal, serta 2 contoh pesanan penjualan.
 
@@ -28,7 +44,7 @@ docker compose ps
 
 ---
 
-### Langkah 2: Jalankan Backend Service (Go)
+#### Langkah 2: Jalankan Backend Service (Go)
 Buka terminal baru:
 ```bash
 cd stockflow/backend
@@ -40,14 +56,14 @@ go run cmd/server/main.go
 
 ---
 
-### Langkah 3: Jalankan Frontend App (React + TypeScript)
+#### Langkah 3: Jalankan Frontend App (React + TypeScript)
 Buka terminal baru:
 ```bash
 cd stockflow/frontend
 npm install
 npm run dev
 ```
-Buka peramban di: `http://localhost:5173`. Frontend sudah terkonfigurasi dengan Vite Proxy yang secara otomatis meneruskan seluruh panggilan `/api/*` ke backend Go di port `8080`.
+Buka peramban di: **`http://localhost:5173`**. Frontend sudah terkonfigurasi dengan Vite Proxy yang secara otomatis meneruskan seluruh panggilan `/api/*` ke backend Go di port `8080`.
 
 ---
 
@@ -140,10 +156,11 @@ curl -X GET http://localhost:8080/api/products/1/movements
 
 ### B. Transaksi Pesanan Penjualan (Sales Orders)
 
-#### 1. Membuat Pesanan Baru (Happy Path)
+#### 1. Membuat Pesanan Baru (Happy Path & Dukungan Idempotency-Key)
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: idem-order-20261028-001" \
   -d '{
     "customer": "PT Digital Pratama",
     "items": [
@@ -152,6 +169,8 @@ curl -X POST http://localhost:8080/api/orders \
     ]
   }'
 ```
+> **Fitur Bonus Idempotency-Key**: Jika request diulang (*retry*) menggunakan `Idempotency-Key` yang sama (misal akibat koneksi jaringan terputus sebelum menerima respons), backend Go akan mendeteksi kunci tersebut dan mengembalikan record pesanan yang telah dibuat sebelumnya tanpa menduplikasi data atau memotong stok untuk kedua kalinya (*zero double-ordering guarantee*).
+
 
 #### 2. Skenario Error Validasi Pre-flight (400 Bad Request)
 - **SKU Tidak Dikenal**:
@@ -261,13 +280,15 @@ Hasil uji otomatis mencakup:
 - `TestCreateOrder_InsufficientStock_Rollback`: Membuktikan transaksi dibatalkan utuh (zero partial writes) saat 1 item overdraw.
 - `TestCreateOrder_Concurrency_RaceCondition`: Simulasi 10 goroutine paralel berebut stok 5; tepat 5 sukses dan 5 menerima 409 `INSUFFICIENT_STOCK`, stok akhir tepat 0 (tidak pernah minus).
 - `TestCancelOrder_RestoreStock_Atomic`: Membuktikan pengembalian stok saat pembatalan dan pencegahan double-cancellation.
+- `TestCreateOrder_IdempotencyKey`: Membuktikan request ulang pesanan dengan kunci idempotensi tidak memotong stok ganda.
+- `TestOrderHandler_GetDailySalesReport`: Membuktikan endpoint rekapitulasi penjualan harian mengembalikan status 200 dengan kalkulasi akurat.
 
 ### Frontend Test Suite (Vitest)
 ```bash
 cd stockflow/frontend
-bun test # atau npm test
+npm test
 ```
-12 unit tests mencakup pemformatan mata uang IDR, relative time, metrik kalkulasi ERP, validasi pencegahan SKU duplikat, dan parser amplop error 409.
+**20 unit tests (100% PASS)** mencakup pemformatan mata uang IDR (`formatCurrencyIDR`), relative time (`formatRelativeTime`), metrik kalkulasi ERP (`calculateSummaryMetrics`), validasi formulir pencegahan SKU duplikat (`orderValidator`), penanganan pagination tabel (`pagination`), dan parser amplop error terstandarisasi (`client.test.ts`).
 
 ### Seeded Fault Test (Bukti Validitas Asersi)
 Untuk membuktikan bahwa test suite tidak menghasilkan *false positive*, dilakukan uji kegagalan sengaja:
@@ -276,10 +297,19 @@ Untuk membuktikan bahwa test suite tidak menghasilkan *false positive*, dilakuka
 
 ---
 
-## 5. Rencana Peningkatan Masa Depan (*What Would You Do Next*)
-1. **Idempotency-Key Engine**: Menyimpan token `Idempotency-Key` di Redis atau tabel PostgreSQL dengan masa kedaluwarsa 24 jam untuk menjamin keamanan pengulangan request jaringan (*network retries*).
-2. **Sistem Webhook Pemenuhan Gudang**: Mengirimkan event `order.created` dan `order.cancelled` secara asinkron ke sistem logistik pihak ketiga.
+## 5. Fitur Bonus yang Telah Diimplementasikan & Rencana Masa Depan
+
+### Fitur Bonus yang Telah Selesai:
+1. **Dukungan Idempotency-Key pada `POST /api/orders`**: Memastikan network retries tidak pernah melakukan double-order dengan tabel `idempotency_keys` dalam transaksi atomik.
+2. **Rekapitulasi Penjualan Harian (`GET /api/reports/daily-sales?date=`)**: Endpoint server-side report yang terhubung langsung dengan kartu metrik ke-5 di antarmuka Dasbor Mini ERP.
+3. **Full Stack Multi-Container Docker Compose**: Menyediakan `backend/Dockerfile` dan `frontend/Dockerfile` + Nginx proxy untuk menjalankan seluruh sistem dengan satu perintah `docker compose up -d --build`.
+4. **UX Craftsmanship & Anti-UI-Slop**: Skeleton loading placeholders, debounce pencarian 300ms, modal konfirmasi pencegah klik tidak sengaja, dan highlight visual merah pada SKU yang gagal saat 409.
+
+### Rencana Peningkatan Masa Depan (*What Would You Do Next*):
+1. **TTL Caching & Redis Integration**: Memindahkan penyimpanan token idempotensi ke Redis dengan masa kedaluwarsa 24 jam untuk beban transaksi yang lebih masif.
+2. **Sistem Webhook Pemenuhan Gudang**: Mengirimkan event `order.created` dan `order.cancelled` secara asinkron ke sistem logistik pihak ketiga (3PL / WMS).
 3. **Multi-Location Warehouse**: Memperluas skema data untuk mendukung manajemen inventaris multi-gudang (multi-warehouse rack & bin tracking).
+
 
 ---
 
