@@ -19,7 +19,7 @@ import (
 func getTestDB(t *testing.T) *sql.DB {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/stockflow?sslmode=disable"
+		dbURL = "postgres://postgres:postgres@localhost:5433/stockflow?sslmode=disable"
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -65,7 +65,7 @@ func TestCreateOrder_HappyPath_Atomic(t *testing.T) {
 	// Buat pesanan sebanyak 5 pcs
 	req := domain.CreateOrderRequest{
 		Customer: "Customer Happy Path",
-		Items: []domain.CreateOrderItemRequest{
+		Items: []domain.OrderItemRequest{
 			{SKU: testSKU, Qty: 5},
 		},
 	}
@@ -129,7 +129,7 @@ func TestCreateOrder_InsufficientStock_Rollback(t *testing.T) {
 	// Pesan Item A (cukup: minta 5 dari 10) dan Item B (overdraw: minta 5 padahal hanya ada 2)
 	req := domain.CreateOrderRequest{
 		Customer: "Customer Rollback Test",
-		Items: []domain.CreateOrderItemRequest{
+		Items: []domain.OrderItemRequest{
 			{SKU: skuA, Qty: 5},
 			{SKU: skuB, Qty: 5},
 		},
@@ -145,14 +145,14 @@ func TestCreateOrder_InsufficientStock_Rollback(t *testing.T) {
 		t.Fatalf("expected *domain.AppError, got %T: %v", err, err)
 	}
 
-	if appErr.StatusCode != 409 || appErr.Code != domain.ErrCodeInsufficientStock {
-		t.Errorf("expected 409 INSUFFICIENT_STOCK, got status %d, code %s", appErr.StatusCode, appErr.Code)
+	if appErr.StatusCode != 409 || appErr.Code() != domain.ErrCodeInsufficientStock {
+		t.Errorf("expected 409 INSUFFICIENT_STOCK, got status %d, code %s", appErr.StatusCode, appErr.Code())
 	}
-	if appErr.SKU != skuB {
-		t.Errorf("expected failing SKU '%s', got '%s'", skuB, appErr.SKU)
+	if appErr.SKU() != skuB {
+		t.Errorf("expected failing SKU '%s', got '%s'", skuB, appErr.SKU())
 	}
-	if appErr.Available == nil || *appErr.Available != 2 {
-		t.Errorf("expected available 2, got %v", appErr.Available)
+	if appErr.Available() == nil || *appErr.Available() != 2 {
+		t.Errorf("expected available 2, got %v", appErr.Available())
 	}
 
 	// PEMBUKTIAN ROLLBACK: Stok Item A tidak boleh berkurang (harus tetap 10)
@@ -214,7 +214,7 @@ func TestCreateOrder_Concurrency_RaceCondition(t *testing.T) {
 
 			req := domain.CreateOrderRequest{
 				Customer: fmt.Sprintf("Parallel Worker #%d", workerID),
-				Items: []domain.CreateOrderItemRequest{
+				Items: []domain.OrderItemRequest{
 					{SKU: testSKU, Qty: 1},
 				},
 			}
@@ -226,7 +226,7 @@ func TestCreateOrder_Concurrency_RaceCondition(t *testing.T) {
 			}
 
 			var appErr *domain.AppError
-			if errors.As(err, &appErr) && appErr.StatusCode == 409 && appErr.Code == domain.ErrCodeInsufficientStock {
+			if errors.As(err, &appErr) && appErr.StatusCode == 409 && appErr.Code() == domain.ErrCodeInsufficientStock {
 				atomic.AddInt32(&conflictCount, 1)
 			} else {
 				atomic.AddInt32(&otherErrorCount, 1)
@@ -285,7 +285,7 @@ func TestCancelOrder_RestoreStock_Atomic(t *testing.T) {
 	// Buat pesanan 4 pcs (stok jadi 6)
 	order, err := orderRepo.CreateOrder(ctx, domain.CreateOrderRequest{
 		Customer: "Customer Cancel Test",
-		Items:    []domain.CreateOrderItemRequest{{SKU: testSKU, Qty: 4}},
+		Items:    []domain.OrderItemRequest{{SKU: testSKU, Qty: 4}},
 	})
 	if err != nil {
 		t.Fatalf("Gagal create order: %v", err)
@@ -327,7 +327,7 @@ func TestCancelOrder_RestoreStock_Atomic(t *testing.T) {
 		t.Fatalf("expected error on double cancellation, got nil")
 	}
 	var appErr *domain.AppError
-	if !errors.As(err, &appErr) || appErr.StatusCode != 409 || appErr.Code != "ORDER_ALREADY_CANCELLED" {
+	if !errors.As(err, &appErr) || appErr.StatusCode != 409 || appErr.Code() != "ORDER_ALREADY_CANCELLED" {
 		t.Errorf("expected 409 ORDER_ALREADY_CANCELLED, got %v", err)
 	}
 }

@@ -17,6 +17,7 @@ type OrderRepository interface {
 	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error)
 	GetOrderByID(ctx context.Context, id int) (*domain.SalesOrder, error)
 	CancelOrder(ctx context.Context, id int) (*domain.SalesOrder, error)
+	GetDailySalesReport(ctx context.Context, date string) (*domain.DailySalesReport, error)
 }
 
 type postgresOrderRepository struct {
@@ -350,3 +351,38 @@ func (r *postgresOrderRepository) CancelOrder(ctx context.Context, id int) (*dom
 
 	return &order, nil
 }
+
+func (r *postgresOrderRepository) GetDailySalesReport(ctx context.Context, targetDate string) (*domain.DailySalesReport, error) {
+	parsedDate, err := time.Parse("2006-01-02", targetDate)
+	if err != nil {
+		return nil, domain.NewBadRequestError("INVALID_DATE_FORMAT", "Format tanggal harus 'YYYY-MM-DD'")
+	}
+
+	query := `
+		SELECT 
+			COALESCE(COUNT(DISTINCT o.id), 0) AS total_orders,
+			COALESCE(SUM(o.total), 0) AS total_revenue,
+			COALESCE(SUM(i.qty), 0) AS total_items_sold
+		FROM sales_orders o
+		LEFT JOIN sales_order_items i ON o.id = i.order_id
+		WHERE o.status = 'CREATED' 
+		  AND o.created_at >= $1::date 
+		  AND o.created_at < ($1::date + INTERVAL '1 day')
+	`
+
+	report := domain.DailySalesReport{
+		Date: targetDate,
+	}
+
+	err = r.db.QueryRowContext(ctx, query, parsedDate.Format("2006-01-02")).Scan(
+		&report.TotalOrders,
+		&report.TotalRevenue,
+		&report.TotalItemsSold,
+	)
+	if err != nil {
+		return nil, domain.NewInternalError(fmt.Errorf("gagal menghitung rekapitulasi penjualan harian: %w", err))
+	}
+
+	return &report, nil
+}
+

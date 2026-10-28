@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,6 +74,9 @@ func main() {
 	mux.HandleFunc("POST /api/orders", orderHandler.CreateOrder)
 	mux.HandleFunc("GET /api/orders/{id}", orderHandler.GetOrderByID)
 	mux.HandleFunc("POST /api/orders/{id}/cancel", orderHandler.CancelOrder)
+
+	// Bonus: Reports Endpoint
+	mux.HandleFunc("GET /api/reports/daily-sales", orderHandler.GetDailySalesReport)
 
 	// Pasang Chain Middleware: Recovery -> Logging -> CORS
 	wrappedMux := handler.RecoverMiddleware(handler.LoggingMiddleware(handler.CORSMiddleware(mux)))

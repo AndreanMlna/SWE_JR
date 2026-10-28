@@ -15,9 +15,10 @@ import (
 
 // mockOrderService mengimplementasikan service.OrderService untuk pengujian unit HTTP handler
 type mockOrderService struct {
-	createOrderFunc  func(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error)
-	getOrderByIDFunc func(ctx context.Context, id int) (*domain.SalesOrder, error)
-	cancelOrderFunc  func(ctx context.Context, id int) (*domain.SalesOrder, error)
+	createOrderFunc         func(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error)
+	getOrderByIDFunc        func(ctx context.Context, id int) (*domain.SalesOrder, error)
+	cancelOrderFunc         func(ctx context.Context, id int) (*domain.SalesOrder, error)
+	getDailySalesReportFunc func(ctx context.Context, date string) (*domain.DailySalesReport, error)
 }
 
 func (m *mockOrderService) CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error) {
@@ -39,6 +40,13 @@ func (m *mockOrderService) CancelOrder(ctx context.Context, id int) (*domain.Sal
 		return m.cancelOrderFunc(ctx, id)
 	}
 	return nil, nil
+}
+
+func (m *mockOrderService) GetDailySalesReport(ctx context.Context, date string) (*domain.DailySalesReport, error) {
+	if m.getDailySalesReportFunc != nil {
+		return m.getDailySalesReportFunc(ctx, date)
+	}
+	return &domain.DailySalesReport{Date: date}, nil
 }
 
 func TestOrderHandler_CreateOrder(t *testing.T) {

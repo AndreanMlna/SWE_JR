@@ -12,6 +12,7 @@ type OrderService interface {
 	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.SalesOrder, error)
 	GetOrderByID(ctx context.Context, id int) (*domain.SalesOrder, error)
 	CancelOrder(ctx context.Context, id int) (*domain.SalesOrder, error)
+	GetDailySalesReport(ctx context.Context, date string) (*domain.DailySalesReport, error)
 }
 
 type orderService struct {
@@ -40,3 +41,8 @@ func (s *orderService) CancelOrder(ctx context.Context, id int) (*domain.SalesOr
 	}
 	return s.repo.CancelOrder(ctx, id)
 }
+
+func (s *orderService) GetDailySalesReport(ctx context.Context, date string) (*domain.DailySalesReport, error) {
+	return s.repo.GetDailySalesReport(ctx, date)
+}
+

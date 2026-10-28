@@ -71,3 +71,20 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, order)
 }
+
+// GetDailySalesReport menangani GET /api/reports/daily-sales?date=YYYY-MM-DD
+func (h *OrderHandler) GetDailySalesReport(w http.ResponseWriter, r *http.Request) {
+	dateStr := r.URL.Query().Get("date")
+	if dateStr == "" {
+		writeError(w, domain.NewBadRequestError("MISSING_DATE", "Query parameter 'date' (YYYY-MM-DD) wajib diisi"))
+		return
+	}
+
+	report, err := h.service.GetDailySalesReport(r.Context(), dateStr)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, report)
+}

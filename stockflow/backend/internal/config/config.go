@@ -19,7 +19,7 @@ func LoadConfig() *Config {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/stockflow?sslmode=disable"
+		dbURL = "postgres://postgres:postgres@localhost:5433/stockflow?sslmode=disable"
 	}
 
 	return &Config{

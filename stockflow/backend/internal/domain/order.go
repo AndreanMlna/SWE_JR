@@ -39,3 +39,12 @@ type CreateOrderRequest struct {
 	Customer string             `json:"customer"`
 	Items    []OrderItemRequest `json:"items"`
 }
+
+// DailySalesReport memuat ringkasan rekapitulasi penjualan per hari (Bonus ERP feature)
+type DailySalesReport struct {
+	Date           string `json:"date"`
+	TotalOrders    int    `json:"total_orders"`
+	TotalRevenue   int    `json:"total_revenue"`
+	TotalItemsSold int    `json:"total_items_sold"`
+}
+

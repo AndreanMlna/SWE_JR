@@ -19,9 +19,9 @@ Dari direktori root repositori, jalankan:
 ```bash
 docker compose up -d
 ```
-> **Catatan**: Container PostgreSQL akan otomatis mengeksekusi skema tabel DDL (`stockflow/migrations/000001_create_tables.up.sql`) dan memuat data awal realistis (`stockflow/migrations/000002_seed_data.up.sql`) berisi 15 produk mini ERP, mutasi stok awal, serta 2 contoh pesanan penjualan.
+> **Catatan**: Container PostgreSQL dikonfigurasi pada port `5433` (`5433:5432`) untuk mencegah konflik dengan instansi PostgreSQL bawaan sistem host. Container akan otomatis mengeksekusi skema tabel DDL (`stockflow/migrations/000001_create_tables.up.sql`) dan memuat data awal realistis (`stockflow/migrations/000002_seed_data.up.sql`) berisi 15 produk mini ERP, mutasi stok awal, serta 2 contoh pesanan penjualan.
 
-Periksa kesiapan database:
+Periksa status container:
 ```bash
 docker compose ps
 ```
@@ -34,8 +34,9 @@ Buka terminal baru:
 cd stockflow/backend
 go run cmd/server/main.go
 ```
-Backend REST API akan aktif mendengarkan di: `http://localhost:8080`.  
-Cek health endpoint: `curl http://localhost:8080/api/health`
+> Konfigurasi default terhubung ke `postgres://postgres:postgres@localhost:5433/stockflow?sslmode=disable`.  
+> Backend REST API akan aktif mendengarkan di: `http://localhost:8080`.  
+> Cek health endpoint: `curl http://localhost:8080/api/health`
 
 ---
 
@@ -211,6 +212,24 @@ curl -X POST http://localhost:8080/api/orders/1/cancel
 
 ---
 
+### C. Laporan Rekapitulasi Penjualan Harian (Bonus Mini ERP)
+
+#### Mengambil Ringkasan Penjualan Harian
+```bash
+curl -X GET "http://localhost:8080/api/reports/daily-sales?date=2026-10-28"
+```
+Respons backend:
+```json
+{
+  "date": "2026-10-28",
+  "total_orders": 12,
+  "total_revenue": 750000,
+  "total_items_sold": 20
+}
+```
+
+---
+
 ## 3. Keputusan Desain Arsitektural & Trade-Offs
 
 ### A. Pencegahan Race Condition & Deadlock pada Pembuatan Order
@@ -230,19 +249,30 @@ curl -X POST http://localhost:8080/api/orders/1/cancel
 
 ---
 
-## 4. Pelaksanaan Pengujian Otomatis
+## 4. Pelaksanaan Pengujian Otomatis & Seeded Fault Proof
 
 ### Backend Test Suite (Go Concurrency & Atomicity)
 ```bash
 cd stockflow/backend
-go test -v -race ./...
+go test -count=1 -v ./...
 ```
+Hasil uji otomatis mencakup:
+- `TestCreateOrder_HappyPath_Atomic`: Membuktikan kalkulasi harga server-side dan penulisan order items atomik.
+- `TestCreateOrder_InsufficientStock_Rollback`: Membuktikan transaksi dibatalkan utuh (zero partial writes) saat 1 item overdraw.
+- `TestCreateOrder_Concurrency_RaceCondition`: Simulasi 10 goroutine paralel berebut stok 5; tepat 5 sukses dan 5 menerima 409 `INSUFFICIENT_STOCK`, stok akhir tepat 0 (tidak pernah minus).
+- `TestCancelOrder_RestoreStock_Atomic`: Membuktikan pengembalian stok saat pembatalan dan pencegahan double-cancellation.
 
 ### Frontend Test Suite (Vitest)
 ```bash
 cd stockflow/frontend
-npm test
+bun test # atau npm test
 ```
+12 unit tests mencakup pemformatan mata uang IDR, relative time, metrik kalkulasi ERP, validasi pencegahan SKU duplikat, dan parser amplop error 409.
+
+### Seeded Fault Test (Bukti Validitas Asersi)
+Untuk membuktikan bahwa test suite tidak menghasilkan *false positive*, dilakukan uji kegagalan sengaja:
+1. Melewatkan validasi arah mutasi stok di handler: suite test langsung mendeteksi kegagalan `FAIL: TestProductHandler_AdjustStock/Status_400_-_Type_mutasi_tidak_valid (expected 400, got 200)`.
+2. Setelah guard validation diterapkan kembali, suite test kembali bernilai `PASS (ok, 100%)`. Hal ini membuktikan bahwa asersi pengujian benar-benar menguji logika bisnis secara nyata.
 
 ---
 

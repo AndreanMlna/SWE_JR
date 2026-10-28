@@ -23,7 +23,8 @@ ON CONFLICT (sku) DO NOTHING;
 -- 2. Insert Initial Stock Inbound Movements (Audit Trail)
 INSERT INTO stock_movements (product_id, type, qty, note, created_at)
 SELECT id, 'in', stock, 'Initial warehouse inventory intake', created_at + INTERVAL '1 hour'
-FROM products;
+FROM products
+WHERE stock > 0;
 
 -- 3. Insert Sample Sales Order 1 (Status: CREATED)
 INSERT INTO sales_orders (id, customer, status, total, created_at)

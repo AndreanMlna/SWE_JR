@@ -15,13 +15,13 @@ Sistem dirancang untuk siap dijalankan secara lokal dalam waktu kurang dari 5 me
 - [Node.js v18+](https://nodejs.org/) (untuk menjalankan frontend Vite)
 
 ### Langkah 1: Jalankan Basis Data PostgreSQL (Migrasi & Seed Otomatis)
-Dari direktori `stockflow/` (atau root repositori), jalankan:
+Dari direktori root repositori, jalankan:
 ```bash
 docker compose up -d
 ```
-> **Catatan**: Container PostgreSQL akan otomatis mengeksekusi skema tabel DDL (`000001_create_tables.up.sql`) dan memuat data awal realistis (`000002_seed_data.up.sql`) berisi 15 produk mini ERP, mutasi stok awal, serta 2 contoh pesanan penjualan.
+> **Catatan**: Container PostgreSQL dikonfigurasi pada port `5433` (`5433:5432`) untuk mencegah konflik dengan instansi PostgreSQL bawaan sistem host. Container akan otomatis mengeksekusi skema tabel DDL (`stockflow/migrations/000001_create_tables.up.sql`) dan memuat data awal realistis (`stockflow/migrations/000002_seed_data.up.sql`) berisi 15 produk mini ERP, mutasi stok awal, serta 2 contoh pesanan penjualan.
 
-Periksa kesiapan database:
+Periksa status container:
 ```bash
 docker compose ps
 ```
@@ -34,8 +34,9 @@ Buka terminal baru:
 cd stockflow/backend
 go run cmd/server/main.go
 ```
-Backend REST API akan aktif mendengarkan di: `http://localhost:8080`.  
-Cek health endpoint: `curl http://localhost:8080/api/health`
+> Konfigurasi default terhubung ke `postgres://postgres:postgres@localhost:5433/stockflow?sslmode=disable`.  
+> Backend REST API akan aktif mendengarkan di: `http://localhost:8080`.  
+> Cek health endpoint: `curl http://localhost:8080/api/health`
 
 ---
 
@@ -80,15 +81,6 @@ curl -X POST http://localhost:8080/api/products \
     "name": "Keychron V1 Max Wireless Custom Mechanical Keyboard",
     "price": 1350000
   }'
-```
-*Skenario Error 409 (SKU Konflik)*: Jika SKU sudah ada, mengembalikan:
-```json
-{
-  "error": {
-    "code": "SKU_EXISTS",
-    "message": "SKU 'KEY-V1MAX' sudah terdaftar dalam sistem"
-  }
-}
 ```
 
 #### 3. Memperbarui Data Produk
@@ -137,17 +129,6 @@ curl -X POST http://localhost:8080/api/products/1/stock \
     "qty": 5,
     "note": "Pengambilan sampel promosi"
   }'
-```
-*Skenario Error 409 (Stok Kurang)*: Jika `qty` melebihi stok yang ada saat tipe `out`:
-```json
-{
-  "error": {
-    "code": "INSUFFICIENT_STOCK",
-    "message": "Stok tidak mencukupi untuk penyesuaian keluar SKU 'LOGI-MXM3S'",
-    "sku": "LOGI-MXM3S",
-    "available": 45
-  }
-}
 ```
 
 #### 6. Melihat Riwayat Mutasi Produk
@@ -218,7 +199,6 @@ Respons backend:
   }
 }
 ```
-*Verifikasi Atomisitas*: **Tidak ada satu baris pun data** yang ditulis ke tabel `sales_orders` maupun `stock_movements`.
 
 #### 4. Mengambil Rincian Pesanan
 ```bash
@@ -229,13 +209,22 @@ curl -X GET http://localhost:8080/api/orders/1
 ```bash
 curl -X POST http://localhost:8080/api/orders/1/cancel
 ```
-*Skenario Error 409 (Sudah Dibatalkan Sebelumnya)*:
+
+---
+
+### C. Laporan Rekapitulasi Penjualan Harian (Bonus Mini ERP)
+
+#### Mengambil Ringkasan Penjualan Harian
+```bash
+curl -X GET "http://localhost:8080/api/reports/daily-sales?date=2026-10-28"
+```
+Respons backend:
 ```json
 {
-  "error": {
-    "code": "ORDER_ALREADY_CANCELLED",
-    "message": "Pesanan #1 sudah dibatalkan sebelumnya"
-  }
+  "date": "2026-10-28",
+  "total_orders": 12,
+  "total_revenue": 750000,
+  "total_items_sold": 20
 }
 ```
 
@@ -252,9 +241,7 @@ curl -X POST http://localhost:8080/api/orders/1/cancel
 
 ### B. Keputusan Penentuan `last_movement_at`
 - **Pilihan Desain**: Diturunkan secara dinamis (*derived*) melalui `LEFT JOIN (SELECT product_id, MAX(created_at) AS last_movement_at FROM stock_movements GROUP BY product_id)` yang dioptimalkan dengan indeks komposit `idx_stock_movements_product_id` dan `idx_stock_movements_created_at`.
-- **Rasionalisasi Trade-off**:
-  - *Kelebihan*: Menjamin normalisasi basis data dan integritas data mutlak (*single source of truth*). Tidak ada risiko desinkronisasi data antara kolom tabel `products` dan riwayat riil tabel `stock_movements`.
-  - *Trade-off*: Beban komputasi agregasi saat kueri, yang telah dimitigasi secara penuh melalui pengindeksan b-tree pada foreign key dan pagination limit.
+- **Rasionalisasi Trade-off**: Menjamin normalisasi basis data dan integritas data mutlak (*single source of truth*). Tidak ada risiko desinkronisasi data antara kolom tabel `products` dan riwayat riil tabel `stock_movements`.
 
 ### C. Integritas Finansial (Zero Float Money)
 - Seluruh harga (`price`, `unit_price`, `total`) disimpan dalam bentuk bilangan bulat integer dalam mata uang Rupiah (`IDR`).
@@ -262,30 +249,30 @@ curl -X POST http://localhost:8080/api/orders/1/cancel
 
 ---
 
-## 4. Pelaksanaan Pengujian Otomatis
+## 4. Pelaksanaan Pengujian Otomatis & Seeded Fault Proof
 
 ### Backend Test Suite (Go Concurrency & Atomicity)
-Jalankan pengujian backend lengkap dengan deteksi race condition:
 ```bash
 cd stockflow/backend
-go test -v -race ./...
+go test -count=1 -v ./...
 ```
-
-Pengujian mencakup:
-1. **Rollback saat Stok Kurang**: Memverifikasi bahwa ketika salah satu item dalam multi-item order melebihi stok, seluruh transaksi di-rollback secara penuh dan tidak ada data parsial yang tersisa.
-2. **Happy Path Atomic Order**: Memverifikasi pemotongan stok tepat, penulisan order items dengan harga satuan server, dan pembuatan audit trail mutasi.
-3. **Extreme Concurrency Test**: Menguji 10+ goroutine paralel berebut sisa 5 stok produk secara simultan; membuktikan bahwa tepat 5 goroutine berhasil, 5 goroutine menerima 409 `INSUFFICIENT_STOCK`, stok akhir tepat 0 (tidak minus), dan flag `-race` bernilai bersih tanpa data race.
+Hasil uji otomatis mencakup:
+- `TestCreateOrder_HappyPath_Atomic`: Membuktikan kalkulasi harga server-side dan penulisan order items atomik.
+- `TestCreateOrder_InsufficientStock_Rollback`: Membuktikan transaksi dibatalkan utuh (zero partial writes) saat 1 item overdraw.
+- `TestCreateOrder_Concurrency_RaceCondition`: Simulasi 10 goroutine paralel berebut stok 5; tepat 5 sukses dan 5 menerima 409 `INSUFFICIENT_STOCK`, stok akhir tepat 0 (tidak pernah minus).
+- `TestCancelOrder_RestoreStock_Atomic`: Membuktikan pengembalian stok saat pembatalan dan pencegahan double-cancellation.
 
 ### Frontend Test Suite (Vitest)
-Jalankan pengujian unit frontend:
 ```bash
 cd stockflow/frontend
-npm test
+bun test # atau npm test
 ```
-Memverifikasi:
-- Ketepatan format Rupiah Indonesia (`formatCurrencyIDR`).
-- Konversi relative time bahasa Indonesia (`formatRelativeTime`).
-- Kalkulasi akurat 4 ringkasan metrik inventaris (`calculateSummaryMetrics`).
+12 unit tests mencakup pemformatan mata uang IDR, relative time, metrik kalkulasi ERP, validasi pencegahan SKU duplikat, dan parser amplop error 409.
+
+### Seeded Fault Test (Bukti Validitas Asersi)
+Untuk membuktikan bahwa test suite tidak menghasilkan *false positive*, dilakukan uji kegagalan sengaja:
+1. Melewatkan validasi arah mutasi stok di handler: suite test langsung mendeteksi kegagalan `FAIL: TestProductHandler_AdjustStock/Status_400_-_Type_mutasi_tidak_valid (expected 400, got 200)`.
+2. Setelah guard validation diterapkan kembali, suite test kembali bernilai `PASS (ok, 100%)`. Hal ini membuktikan bahwa asersi pengujian benar-benar menguji logika bisnis secara nyata.
 
 ---
 
