@@ -29,6 +29,12 @@ func NewProductService(repo repository.ProductRepository) ProductService {
 }
 
 func (s *productService) GetProducts(ctx context.Context, filter domain.ProductFilter) (*domain.ProductListResponse, error) {
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.Limit <= 0 {
+		filter.Limit = 10
+	}
 	products, total, err := s.repo.GetProducts(ctx, filter)
 	if err != nil {
 		return nil, err
