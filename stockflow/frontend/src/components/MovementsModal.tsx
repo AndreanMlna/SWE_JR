@@ -24,9 +24,9 @@ export const MovementsModal: React.FC<MovementsModalProps> = ({ product, onClose
         if (isMounted) {
           setMovements(res.data);
         }
-      } catch (err: any) {
+      } catch (err) {
         if (isMounted) {
-          setError(err.message || 'Gagal memuat riwayat mutasi stok.');
+          setError(err instanceof Error ? err.message : 'Gagal memuat riwayat mutasi stok.');
         }
       } finally {
         if (isMounted) {

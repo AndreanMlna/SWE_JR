@@ -8,11 +8,8 @@ import {
   Trash2,
   AlertCircle,
   RefreshCcw,
-  CheckCircle2,
-  XCircle,
   ChevronLeft,
   ChevronRight,
-  Layers,
 } from 'lucide-react';
 import type { Product, ProductFilterTab } from '../types/api';
 import { formatCurrencyIDR, formatRelativeTime } from '../utils/formatters';

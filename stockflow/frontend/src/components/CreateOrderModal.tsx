@@ -52,7 +52,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     setItems(items.filter((it) => it.id !== id));
   };
 
-  const handleUpdateItem = (id: string, field: 'sku' | 'qty', val: any) => {
+  const handleUpdateItem = (id: string, field: 'sku' | 'qty', val: string | number) => {
     setItems(
       items.map((it) => {
         if (it.id === id) {

@@ -35,6 +35,8 @@ declare module 'lucide-react' {
   export const XCircle: Icon;
   export const Layers: Icon;
   export const CheckCircle: Icon;
+  export const ChevronLeft: Icon;
+  export const ChevronRight: Icon;
 
   const icons: { [key: string]: Icon };
   export default icons;

@@ -61,7 +61,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     return null as T;
   }
 
-  let jsonBody: any = null;
+  let jsonBody: Record<string, unknown> | null = null;
   const contentType = response.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
     try {
@@ -72,8 +72,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    if (jsonBody && jsonBody.error) {
-      const errEnvelope = jsonBody as APIErrorEnvelope;
+    if (jsonBody && typeof jsonBody === 'object' && 'error' in jsonBody) {
+      const errEnvelope = jsonBody as unknown as APIErrorEnvelope;
       throw new APIClientError(response.status, errEnvelope.error);
     }
 
